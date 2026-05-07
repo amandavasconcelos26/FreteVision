@@ -8,13 +8,39 @@ export async function parseSpreadsheet(file: File): Promise<ExtractedData> {
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary' });
+        const workbook = XLSX.read(data, { type: 'binary', cellStyles: true });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         
-        // Use raw objects
-        const json = XLSX.utils.sheet_to_json<SpreadsheetRow>(worksheet);
-        resolve(extractData(json));
+        // Parse ignoring hidden rows
+        const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1:A1");
+        const headers: string[] = [];
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+          const cell = worksheet[XLSX.utils.encode_cell({c: C, r: range.s.r})];
+          headers.push(cell && cell.w ? String(cell.w).trim() : (cell && cell.v ? String(cell.v).trim() : `Col_${C}`));
+        }
+
+        const visibleRows: SpreadsheetRow[] = [];
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+          const rowInfo = worksheet['!rows'];
+          const rowIsHidden = rowInfo && rowInfo[R] && rowInfo[R].hidden;
+          if (rowIsHidden) continue;
+          
+          const rowObj: any = {};
+          let hasData = false;
+          for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cell = worksheet[XLSX.utils.encode_cell({c: C, r: R})];
+            if (cell && cell.v !== undefined && cell.v !== null && cell.v !== '') {
+              rowObj[headers[C - range.s.c]] = cell.v;
+              hasData = true;
+            }
+          }
+          if (hasData) {
+            visibleRows.push(rowObj as SpreadsheetRow);
+          }
+        }
+        
+        resolve(extractData(visibleRows));
       } catch (err) {
         reject(err);
       }
