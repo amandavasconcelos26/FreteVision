@@ -15,9 +15,28 @@ function App() {
   const [view, setView] = useState<'route' | 'settings'>('route');
 
   return (
-    <div className="flex h-screen w-full bg-[#f8f9fa] text-zinc-900 font-sans overflow-hidden selection:bg-indigo-100 selection:text-indigo-900">
-      {/* Sidebar */}
-      <aside className="w-[280px] bg-white text-zinc-800 flex flex-col shrink-0 border-r border-zinc-200/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)] z-10">
+    <div className="flex flex-col md:flex-row h-screen w-full bg-[#f8f9fa] text-zinc-900 font-sans overflow-hidden selection:bg-indigo-100 selection:text-indigo-900">
+      {/* Mobile Header */}
+      <header className="md:hidden flex items-center justify-center bg-white border-b border-zinc-200/80 px-4 py-3 shrink-0 relative z-20 shadow-sm">
+        <div className="flex items-center justify-center gap-2">
+            <div className="relative font-serif text-[28px] leading-none select-none flex items-center shrink-0">
+              <span className="text-zinc-900 font-light z-10">A</span>
+              <span className="text-[#C5A059] relative -ml-2.5 z-0">V</span>
+            </div>
+            <div className="h-6 w-[1px] bg-zinc-200 shrink-0 mx-1"></div>
+            <div className="flex flex-col justify-center">
+              <span className="text-zinc-900 tracking-[0.1em] font-light text-[10px] leading-tight uppercase font-sans">
+                Amanda
+              </span>
+              <span className="text-[#C5A059] tracking-[0.1em] font-normal text-[10px] leading-tight uppercase font-sans">
+                Vasconcelos
+              </span>
+            </div>
+        </div>
+      </header>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-[280px] bg-white text-zinc-800 flex-col shrink-0 border-r border-zinc-200/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)] z-10">
         <div className="pt-8 pb-6 px-4 w-full flex flex-col items-center">
           <div className="flex items-center justify-center gap-3 w-full mb-4">
             {/* AV Logo Mark */}
@@ -69,7 +88,7 @@ function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 overflow-auto bg-[#f8f9fa] relative">
+      <main className="flex-1 min-w-0 overflow-auto bg-[#f8f9fa] relative pb-20 md:pb-0 z-0">
         <AnimatePresence mode="wait">
           {view === 'route' ? (
             <motion.div key="route" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="min-h-full">
@@ -82,6 +101,24 @@ function App() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-zinc-200/80 flex px-2 py-2 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
+        <button 
+          onClick={() => setView('route')}
+          className={`flex-1 flex flex-col items-center justify-center py-2.5 rounded-xl gap-1 transition-colors ${view === 'route' ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-zinc-500'}`}
+        >
+          <Activity className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Painel da Rota</span>
+        </button>
+        <button 
+          onClick={() => setView('settings')}
+          className={`flex-1 flex flex-col items-center justify-center py-2.5 rounded-xl gap-1 transition-colors ${view === 'settings' ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-zinc-500'}`}
+        >
+          <SettingsIcon className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Custos Operacionais</span>
+        </button>
+      </nav>
     </div>
   );
 }
@@ -269,16 +306,16 @@ function RouteDashboard() {
   };
 
   return (
-    <div className="p-10 max-w-7xl mx-auto space-y-10">
-      <header className="flex justify-between items-end border-b border-zinc-200 pb-5">
+    <div className="p-5 md:p-10 max-w-7xl mx-auto space-y-6 md:space-y-10">
+      <header className="flex flex-col md:flex-row md:justify-between items-start md:items-end border-b border-zinc-200 pb-5 gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Painel da Rota</h1>
-          <p className="text-zinc-500 mt-2 font-medium">Plataforma Inteligente de Viabilidade de Frete</p>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-zinc-900">Painel da Rota</h1>
+          <p className="text-zinc-500 mt-2 text-sm md:text-base font-medium">Plataforma Inteligente de Viabilidade de Frete</p>
         </div>
         {!extracted && (
-          <div className="relative">
+          <div className="relative w-full md:w-auto">
              <input type="file" accept=".csv, .xlsx, .xls" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-             <Button className="gap-2 pointer-events-none bg-zinc-900 text-white hover:bg-zinc-800 rounded-xl px-5 py-5 shadow-sm">
+             <Button className="w-full md:w-auto gap-2 pointer-events-none bg-zinc-900 text-white hover:bg-zinc-800 rounded-xl px-5 py-5 shadow-sm">
                 <UploadCloud className="w-4 h-4" />
                 {loading ? "Processando..." : "Importar Planilha"}
              </Button>
@@ -318,15 +355,15 @@ function RouteDashboard() {
 
       {extracted && (
         <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6">
-          <motion.div variants={itemVariants} className="flex items-center justify-between mt-2">
-             <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-[13px] font-medium text-emerald-700 bg-emerald-50/80 py-1.5 px-3.5 rounded-full border border-emerald-200/50">
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2 gap-4">
+             <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto overflow-hidden">
+                <div className="flex items-center gap-2 text-[12px] md:text-[13px] font-medium text-emerald-700 bg-emerald-50/80 py-1.5 px-3.5 rounded-full border border-emerald-200/50 shrink-0">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
                   Dados Importados com Sucesso
                 </div>
-                <div className="relative overflow-hidden flex items-center">
+                <div className="relative overflow-hidden flex items-center shrink-0">
                   <input type="file" accept=".csv, .xlsx, .xls" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                  <button className="text-[13px] font-medium text-zinc-400 hover:text-zinc-600 transition-colors pointer-events-none underline underline-offset-2">Substituir arquivo</button>
+                  <button className="text-[12px] md:text-[13px] font-medium text-zinc-400 hover:text-zinc-600 transition-colors pointer-events-none underline underline-offset-2">Substituir arquivo</button>
                 </div>
              </div>
           </motion.div>
@@ -412,8 +449,8 @@ function RouteDashboard() {
                 <CardHeader className="bg-white border-b border-zinc-100 py-5 px-6">
                   <CardTitle className="text-[14px] font-semibold text-zinc-900">Materiais Transportados</CardTitle>
                 </CardHeader>
-                <CardContent className="p-0">
-                  <Table>
+                <CardContent className="p-0 overflow-x-auto">
+                  <Table className="min-w-[400px]">
                     <TableHeader className="bg-zinc-50/50">
                       <TableRow className="border-b border-zinc-100">
                         <TableHead className="font-semibold text-[11px] tracking-wider text-zinc-500 uppercase py-3.5 px-6">Descrição</TableHead>
@@ -585,10 +622,10 @@ function SettingsDashboard() {
   };
 
   return (
-    <div className="p-10 max-w-4xl mx-auto space-y-8">
+    <div className="p-5 md:p-10 max-w-4xl mx-auto space-y-6 md:space-y-8">
       <header className="border-b border-zinc-200 pb-5">
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Custos Fixos da Frota</h1>
-        <p className="text-zinc-500 mt-2 text-[15px] font-medium">Configure os valores padrão por KM rodado e taxas diárias. Eles serão gravados para cálculos futuros.</p>
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-zinc-900">Custos Fixos da Frota</h1>
+        <p className="text-zinc-500 mt-2 text-sm md:text-[15px] font-medium">Configure os valores padrão por KM rodado e taxas diárias. Eles serão gravados para cálculos futuros.</p>
       </header>
 
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
