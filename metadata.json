@@ -1,0 +1,6 @@
+{
+  "name": "RouterX Logistics",
+  "description": "Calculadora de fretamento e roteirização com importação de planilhas. Extrai automaticamente peso, rotas, entregas e prevê lucros e custos variáveis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
