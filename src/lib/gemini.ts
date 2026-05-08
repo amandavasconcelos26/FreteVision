@@ -5,7 +5,9 @@ export async function fetchDieselPrice(origem: string): Promise<number | null> {
   if (!origem) return null;
   
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined);
+    if (!apiKey) return null;
+    const ai = new GoogleGenAI({ apiKey });
     
     // We prompt to get exactly a float number, using googleSearch to find actual current prices
     const response = await ai.models.generateContent({
@@ -50,11 +52,15 @@ export interface RouteOptimizationResult {
   analiseGeral: string;
 }
 
-export async function generateOptimalRoute(origem: string, entregas: DeliveryItem[]): Promise<RouteOptimizationResult | null> {
+export async function generateOptimalRoute(origem: string, entregas: DeliveryItem[]): Promise<RouteOptimizationResult | { error: string } | null> {
   if (!entregas || entregas.length === 0) return null;
   
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined);
+    if (!apiKey) {
+      return { error: "Chave da API ausente. No Vercel, você deve criar a variável como VITE_GEMINI_API_KEY e fazer um NOVO DEPLOY." };
+    }
+    const ai = new GoogleGenAI({ apiKey });
     
     const prompt = `Atuando como um roteirista logístico, crie a melhor rota possível para as seguintes entregas, saindo de ${origem || 'uma localidade padrão'}.
 Restrições do Veículo:
@@ -124,8 +130,9 @@ ${JSON.stringify(entregas.map(e => ({
     if (response.text) {
       return JSON.parse(response.text) as RouteOptimizationResult;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Erro na roteirização via Gemini:", error);
+    return { error: `Erro na API do Gemini: ${error.message || String(error)}. Verifique sua chave de API ou limites de uso.` };
   }
   return null;
 }

@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 function App() {
   const [view, setView] = useState<'route' | 'routing' | 'settings'>('route');
   const [extracted, setExtracted] = useState<ExtractedData | null>(null);
-  const [routeOptimization, setRouteOptimization] = useState<RouteOptimizationResult | null>(null);
+  const [routeOptimization, setRouteOptimization] = useState<RouteOptimizationResult | { error: string } | null>(null);
   const [isOptimizingRoute, setIsOptimizingRoute] = useState(false);
   const [variables, setVariables] = useState<RouteVariables>({
     kmTotal: 0,
@@ -180,8 +180,8 @@ function RouteDashboard({
   setExtracted: (v: ExtractedData | null) => void;
   variables: RouteVariables;
   setVariables: React.Dispatch<React.SetStateAction<RouteVariables>>;
-  routeOptimization: RouteOptimizationResult | null;
-  setRouteOptimization: (v: RouteOptimizationResult | null) => void;
+  routeOptimization: RouteOptimizationResult | { error: string } | null;
+  setRouteOptimization: (v: RouteOptimizationResult | { error: string } | null) => void;
   isOptimizingRoute: boolean;
   setIsOptimizingRoute: (v: boolean) => void;
 }) {
@@ -209,7 +209,9 @@ function RouteDashboard({
       setIsOptimizingRoute(false);
     }
     
-    if (!optimizedRes || !optimizedRes.entregasOrdenadas?.length) {
+    if (optimizedRes && 'error' in optimizedRes) {
+      alert("Erro da IA: " + optimizedRes.error + "\n\nO cálculo da rota continuará sem a otimização de paradas.");
+    } else if (!optimizedRes || !optimizedRes.entregasOrdenadas?.length) {
       alert("Falha ao gerar roteirização. Tentando sem otimização...");
     }
 
@@ -241,7 +243,7 @@ function RouteDashboard({
       
       // 2. Determine ordered destinations
       let orderedCities = extracted.cidades;
-      if (optimizedRes && optimizedRes.entregasOrdenadas.length > 0) {
+      if (optimizedRes && !('error' in optimizedRes) && optimizedRes.entregasOrdenadas?.length > 0) {
          const sequenced = optimizedRes.entregasOrdenadas.sort((a,b) => a.ordem - b.ordem).map(e => {
             const ent = extracted.entregas.find(ex => ex.id === e.id);
             return ent ? ent.cidade : null;
@@ -751,8 +753,8 @@ function RoutingDashboard({
 }: { 
   extracted: ExtractedData | null, 
   cidadeOrigem?: string,
-  routeOptimization: RouteOptimizationResult | null,
-  setRouteOptimization: (v: RouteOptimizationResult | null) => void,
+  routeOptimization: RouteOptimizationResult | { error: string } | null,
+  setRouteOptimization: (v: RouteOptimizationResult | { error: string } | null) => void,
   isOptimizingRoute: boolean,
   setIsOptimizingRoute: (v: boolean) => void
 }) {
@@ -809,7 +811,24 @@ function RoutingDashboard({
         </div>
       )}
 
-      {result && !loading && (
+      {result && 'error' in result && !loading && (
+        <Card className="shadow-sm border border-red-200/80 rounded-2xl flex-1 flex items-center justify-center bg-red-50 min-h-[400px]">
+          <div className="flex flex-col items-center justify-center text-center p-8 max-w-md mx-auto">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-zinc-900 mb-2">Erro na Roteirização</h3>
+            <p className="text-red-700 text-sm mb-6">
+              {result.error}
+            </p>
+            <Button onClick={handleOtimizar} variant="outline" className="border-red-200 text-red-700 hover:bg-red-100">
+              Tentar Novamente
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {result && !('error' in result) && !loading && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="shadow-sm border-zinc-200/60 rounded-2xl">
