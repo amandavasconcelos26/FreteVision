@@ -6,12 +6,15 @@ export async function fetchDieselPrice(origem: string): Promise<number | null> {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     
-    // We prompt to get exactly a float number, nothing else
+    // We prompt to get exactly a float number, using googleSearch to find actual current prices
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: `Pesquise na internet qual o preço médio atualizado (em reais) do litro do Diesel S10 em ${origem}, Brasil. 
-Responda APENAS com um número decimal usando ponto para separar os centavos (ex: 5.89). Não explique ou escreva textos.`,
-      tools: [{ googleSearch: {} }]
+      contents: `Qual o preço médio atualizado e verídico de mercado do litro do Diesel S10 em ${origem}, Brasil? Busque dados reais da ANP ou fontes de notícias recentes.
+Responda APENAS com um número decimal usando ponto para separar os centavos (ex: 5.89). Não escreva textos ou explicações, apenas o valor numérico exato.`,
+      config: {
+        tools: [{ googleSearch: {} }],
+        temperature: 0.1,
+      }
     });
     
     const text = response.text || "";

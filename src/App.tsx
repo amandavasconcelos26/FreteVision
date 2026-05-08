@@ -20,48 +20,14 @@ function App() {
       {/* Mobile Header */}
       <header className="md:hidden flex items-center justify-center bg-white border-b border-zinc-200/80 px-4 py-3 shrink-0 relative z-20 shadow-sm">
         <div className="flex items-center justify-center gap-2">
-            <div className="relative font-serif text-[28px] leading-none select-none flex items-center shrink-0">
-              <span className="text-zinc-900 font-light z-10">A</span>
-              <span className="text-[#C5A059] relative -ml-2.5 z-0">V</span>
-            </div>
-            <div className="h-6 w-[1px] bg-zinc-200 shrink-0 mx-1"></div>
-            <div className="flex flex-col justify-center">
-              <span className="text-zinc-900 tracking-[0.1em] font-light text-[10px] leading-tight uppercase font-sans">
-                Amanda
-              </span>
-              <span className="text-[#C5A059] tracking-[0.1em] font-normal text-[10px] leading-tight uppercase font-sans">
-                Vasconcelos
-              </span>
-            </div>
+            <img src="/logo.png" alt="Frete Vision Logo" className="h-24 object-contain" />
         </div>
       </header>
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-[280px] bg-white text-zinc-800 flex-col shrink-0 border-r border-zinc-200/80 shadow-[1px_0_10px_rgba(0,0,0,0.02)] z-10">
         <div className="pt-8 pb-6 px-4 w-full flex flex-col items-center">
-          <div className="flex items-center justify-center gap-3 w-full mb-4">
-            {/* AV Logo Mark */}
-            <div className="relative font-serif text-[42px] leading-none select-none flex items-center shrink-0">
-              <span className="text-zinc-900 font-light z-10">A</span>
-              <span className="text-[#C5A059] relative -ml-3.5 z-0">V</span>
-            </div>
-            
-            <div className="h-10 w-[1px] bg-zinc-200 shrink-0"></div>
-            
-            <div className="flex flex-col justify-center gap-1">
-              <span className="text-zinc-900 tracking-[0.2em] font-light text-[14px] leading-none uppercase font-sans">
-                Amanda
-              </span>
-              <span className="text-[#C5A059] tracking-[0.18em] font-normal text-[14px] leading-none uppercase font-sans">
-                Vasconcelos
-              </span>
-            </div>
-          </div>
-          
-          <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-[#C5A059]/40 to-transparent mb-3"></div>
-          <span className="text-[9px] text-zinc-500 font-medium tracking-[0.2em] uppercase text-center w-full">
-            Auditoria & Gestão Operacional
-          </span>
+          <img src="/logo.png" alt="Frete Vision Logo" className="h-32 md:h-[220px] md:-mt-8 w-full object-contain scale-110" />
         </div>
         
         <nav className="flex-1 px-4 space-y-1.5 mt-4">
@@ -145,6 +111,11 @@ function RouteDashboard() {
   const [calculatingRoute, setCalculatingRoute] = useState(false);
   const [calculatingDiesel, setCalculatingDiesel] = useState(false);
   const [googleMapsUrl, setGoogleMapsUrl] = useState<string>('');
+
+  const handleOriginComplete = () => {
+    calculateRouteDistance();
+    handleFetchDieselPrice();
+  };
 
   const calculateRouteDistance = async () => {
     if (!variables.cidadeOrigem || !extracted || extracted.cidades.length === 0) return;
@@ -247,7 +218,7 @@ function RouteDashboard() {
     }
   };
 
-  const handleFetchDieselPrice = async (silent: boolean = false) => {
+  const handleFetchDieselPrice = async () => {
     if (!variables.cidadeOrigem) return;
     setCalculatingDiesel(true);
     try {
@@ -255,11 +226,11 @@ function RouteDashboard() {
       if (price !== null) {
         setVariables(p => ({ ...p, valorDieselAtual: price }));
       } else {
-        if (!silent) alert("Não foi possível estimar o preço do diesel via IA. Tente manualmente ou verifique a conexão.");
+        alert("Não foi possível estimar o preço do diesel via IA. Tente manualmente ou verifique a conexão.");
       }
     } catch (err) {
       console.error(err);
-      if (!silent) alert("Erro ao buscar o preço do diesel.");
+      alert("Erro ao buscar o preço do diesel.");
     } finally {
       setCalculatingDiesel(false);
     }
@@ -418,21 +389,10 @@ function RouteDashboard() {
                             className="bg-white border-zinc-200 focus:ring-1 focus:ring-indigo-500 shadow-sm rounded-xl h-10"
                             value={variables.cidadeOrigem || ''} 
                             onChange={e => setVariables(p => ({...p, cidadeOrigem: e.target.value}))}
-                            onBlur={() => {
-                              calculateRouteDistance();
-                              if (variables.cidadeOrigem) handleFetchDieselPrice(true);
-                            }}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') {
-                                calculateRouteDistance();
-                                if (variables.cidadeOrigem) handleFetchDieselPrice(true);
-                              }
-                            }}
+                            onBlur={handleOriginComplete}
+                            onKeyDown={e => e.key === 'Enter' && handleOriginComplete()}
                          />
-                         <Button onClick={() => {
-                           calculateRouteDistance();
-                           if (variables.cidadeOrigem) handleFetchDieselPrice(true);
-                         }} disabled={calculatingRoute || !variables.cidadeOrigem} title="Calcular Rota Automática" variant="secondary" className="border border-zinc-200 bg-white hover:bg-zinc-50 shadow-sm rounded-xl h-10 w-10 p-0 shrink-0">
+                         <Button onClick={handleOriginComplete} disabled={calculatingRoute || !variables.cidadeOrigem} title="Calcular Rota Automática" variant="secondary" className="border border-zinc-200 bg-white hover:bg-zinc-50 shadow-sm rounded-xl h-10 w-10 p-0 shrink-0">
                            {calculatingRoute ? <Activity className="w-4 h-4 animate-spin text-zinc-600" /> : <MapPin className="w-4 h-4 text-zinc-600" />}
                          </Button>
                       </div>
@@ -450,7 +410,7 @@ function RouteDashboard() {
                           onChange={e => updateVar('valorDieselAtual', e.target.value)} 
                         />
                         <Button 
-                          onClick={() => handleFetchDieselPrice(false)} 
+                          onClick={handleFetchDieselPrice} 
                           disabled={calculatingDiesel || !variables.cidadeOrigem} 
                           title="Estimar Preço via IA" 
                           variant="secondary" 
