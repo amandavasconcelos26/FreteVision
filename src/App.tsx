@@ -3,6 +3,7 @@ import { Truck, Settings as SettingsIcon, UploadCloud, MapPin, Package, Users, D
 import { useSettings } from './hooks/useSettings';
 import { ExtractedData, RouteVariables, FixedCosts, RouteCalculations } from './types';
 import { parseSpreadsheet } from './lib/extractor';
+import { fetchDieselPrice } from './lib/gemini';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
@@ -142,6 +143,7 @@ function RouteDashboard() {
   });
 
   const [calculatingRoute, setCalculatingRoute] = useState(false);
+  const [calculatingDiesel, setCalculatingDiesel] = useState(false);
   const [googleMapsUrl, setGoogleMapsUrl] = useState<string>('');
 
   const calculateRouteDistance = async () => {
@@ -245,9 +247,28 @@ function RouteDashboard() {
     }
   };
 
+  const handleFetchDieselPrice = async (silent: boolean = false) => {
+    if (!variables.cidadeOrigem) return;
+    setCalculatingDiesel(true);
+    try {
+      const price = await fetchDieselPrice(variables.cidadeOrigem);
+      if (price !== null) {
+        setVariables(p => ({ ...p, valorDieselAtual: price }));
+      } else {
+        if (!silent) alert("Não foi possível estimar o preço do diesel via IA. Tente manualmente ou verifique a conexão.");
+      }
+    } catch (err) {
+      console.error(err);
+      if (!silent) alert("Erro ao buscar o preço do diesel.");
+    } finally {
+      setCalculatingDiesel(false);
+    }
+  };
+
   const calc = useMemo(() => {
     const d = variables.kmTotal / (settings.mediaKmLitro > 0 ? settings.mediaKmLitro : 1);
-    const custoDiesel = d * settings.valorDiesel;
+    const valorDieselBase = variables.valorDieselAtual !== undefined ? variables.valorDieselAtual : settings.valorDiesel;
+    const custoDiesel = d * valorDieselBase;
     const custoPernoite = variables.qtdPernoites * (settings.pernoiteMotorista + settings.pernoiteAjudante);
     const custoPneu = variables.kmTotal * settings.custoPneuKm;
     const custoDepreciacao = variables.kmTotal * settings.custoDepreciacaoKm;
@@ -397,15 +418,49 @@ function RouteDashboard() {
                             className="bg-white border-zinc-200 focus:ring-1 focus:ring-indigo-500 shadow-sm rounded-xl h-10"
                             value={variables.cidadeOrigem || ''} 
                             onChange={e => setVariables(p => ({...p, cidadeOrigem: e.target.value}))}
-                            onBlur={calculateRouteDistance}
-                            onKeyDown={e => e.key === 'Enter' && calculateRouteDistance()}
+                            onBlur={() => {
+                              calculateRouteDistance();
+                              if (variables.cidadeOrigem) handleFetchDieselPrice(true);
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                calculateRouteDistance();
+                                if (variables.cidadeOrigem) handleFetchDieselPrice(true);
+                              }
+                            }}
                          />
-                         <Button onClick={calculateRouteDistance} disabled={calculatingRoute || !variables.cidadeOrigem} title="Calcular Rota Automática" variant="secondary" className="border border-zinc-200 bg-white hover:bg-zinc-50 shadow-sm rounded-xl h-10 w-10 p-0">
+                         <Button onClick={() => {
+                           calculateRouteDistance();
+                           if (variables.cidadeOrigem) handleFetchDieselPrice(true);
+                         }} disabled={calculatingRoute || !variables.cidadeOrigem} title="Calcular Rota Automática" variant="secondary" className="border border-zinc-200 bg-white hover:bg-zinc-50 shadow-sm rounded-xl h-10 w-10 p-0 shrink-0">
                            {calculatingRoute ? <Activity className="w-4 h-4 animate-spin text-zinc-600" /> : <MapPin className="w-4 h-4 text-zinc-600" />}
                          </Button>
                       </div>
                     </div>
                     <div className="space-y-2">
+                      <Label className="text-zinc-500 uppercase text-[11px] tracking-widest font-semibold flex justify-between items-center">
+                        <span>Valor Diesel S10 (R$/L) {calculatingDiesel && <span className="text-indigo-500 normal-case font-medium ml-2 tracking-normal">buscando IA...</span>}</span>
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          type="number" 
+                          placeholder={settings.valorDiesel.toString()} 
+                          className="font-mono bg-white border-zinc-200 focus:ring-1 focus:ring-indigo-500 shadow-sm rounded-xl h-10" 
+                          value={variables.valorDieselAtual ?? ''} 
+                          onChange={e => updateVar('valorDieselAtual', e.target.value)} 
+                        />
+                        <Button 
+                          onClick={() => handleFetchDieselPrice(false)} 
+                          disabled={calculatingDiesel || !variables.cidadeOrigem} 
+                          title="Estimar Preço via IA" 
+                          variant="secondary" 
+                          className="border border-[#C5A059]/30 bg-[#C5A059]/5 hover:bg-[#C5A059]/10 text-[#C5A059] shadow-sm rounded-xl h-10 w-10 p-0 shrink-0"
+                        >
+                           {calculatingDiesel ? <Activity className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="space-y-2 lg:col-span-1">
                       <Label className="text-zinc-500 uppercase text-[11px] tracking-widest font-semibold flex items-center justify-between">
                         <span>Quilometragem (KM) {calculatingRoute && <span className="text-indigo-500 normal-case font-medium ml-2 tracking-normal">calculando...</span>}</span>
                         {googleMapsUrl && (

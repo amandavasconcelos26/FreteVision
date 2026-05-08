@@ -19,6 +19,7 @@ export interface RouteVariables {
   descarga: number;
   outrosCustos: number;
   cidadeOrigem?: string;
+  valorDieselAtual?: number;
 }
 
 export interface SpreadsheetRow {
