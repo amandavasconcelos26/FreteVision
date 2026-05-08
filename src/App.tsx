@@ -52,18 +52,34 @@ function App() {
             <span className="relative z-10">Custos Operacionais</span>
           </button>
         </nav>
+        
+        <div className="p-4 mt-auto border-t border-zinc-200/80">
+          <p className="text-[10px] text-zinc-400 text-center uppercase tracking-wider font-medium">
+            &copy; 2026 Desenvolvido por Amanda Vasconcelos
+          </p>
+        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 overflow-auto bg-[#f8f9fa] relative pb-20 md:pb-0 z-0">
         <AnimatePresence mode="wait">
           {view === 'route' ? (
-            <motion.div key="route" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="min-h-full">
+            <motion.div key="route" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="min-h-full flex flex-col">
               <RouteDashboard />
+              <div className="md:hidden mt-auto py-6 px-4">
+                <p className="text-[10px] text-zinc-400 text-center uppercase tracking-wider font-medium">
+                  &copy; 2026 Desenvolvido por Amanda Vasconcelos
+                </p>
+              </div>
             </motion.div>
           ) : (
-            <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="min-h-full">
+            <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="min-h-full flex flex-col">
               <SettingsDashboard />
+              <div className="md:hidden mt-auto py-6 px-4">
+                <p className="text-[10px] text-zinc-400 text-center uppercase tracking-wider font-medium">
+                  &copy; 2026 Desenvolvido por Amanda Vasconcelos
+                </p>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
