@@ -3,7 +3,7 @@ import { Truck, Settings as SettingsIcon, UploadCloud, MapPin, Package, Users, D
 import { useSettings } from './hooks/useSettings';
 import { ExtractedData, RouteVariables, FixedCosts, RouteCalculations } from './types';
 import { parseSpreadsheet } from './lib/extractor';
-import { fetchDieselPrice } from './lib/gemini';
+import { fetchDieselPrice, generateOptimalRoute, RouteOptimizationResult } from './lib/gemini';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
@@ -15,6 +15,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 function App() {
   const [view, setView] = useState<'route' | 'routing' | 'settings'>('route');
   const [extracted, setExtracted] = useState<ExtractedData | null>(null);
+  const [routeOptimization, setRouteOptimization] = useState<RouteOptimizationResult | null>(null);
+  const [isOptimizingRoute, setIsOptimizingRoute] = useState(false);
   const [variables, setVariables] = useState<RouteVariables>({
     kmTotal: 0,
     valorFrete: 0,
@@ -89,7 +91,11 @@ function App() {
                 extracted={extracted} 
                 setExtracted={setExtracted} 
                 variables={variables} 
-                setVariables={setVariables} 
+                setVariables={setVariables}
+                routeOptimization={routeOptimization}
+                setRouteOptimization={setRouteOptimization}
+                isOptimizingRoute={isOptimizingRoute}
+                setIsOptimizingRoute={setIsOptimizingRoute}
               />
               <div className="md:hidden mt-auto py-6 px-4">
                 <p className="text-[10px] text-zinc-400 text-center uppercase tracking-wider font-medium">
@@ -102,7 +108,11 @@ function App() {
             <motion.div key="routing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="min-h-full flex flex-col">
               <RoutingDashboard 
                 extracted={extracted} 
-                cidadeOrigem={variables.cidadeOrigem} 
+                cidadeOrigem={variables.cidadeOrigem}
+                routeOptimization={routeOptimization}
+                setRouteOptimization={setRouteOptimization}
+                isOptimizingRoute={isOptimizingRoute}
+                setIsOptimizingRoute={setIsOptimizingRoute}
               />
               <div className="md:hidden mt-auto py-6 px-4">
                 <p className="text-[10px] text-zinc-400 text-center uppercase tracking-wider font-medium">
@@ -160,12 +170,20 @@ function RouteDashboard({
   extracted, 
   setExtracted, 
   variables, 
-  setVariables 
+  setVariables,
+  routeOptimization,
+  setRouteOptimization,
+  isOptimizingRoute,
+  setIsOptimizingRoute
 }: { 
   extracted: ExtractedData | null; 
   setExtracted: (v: ExtractedData | null) => void;
   variables: RouteVariables;
   setVariables: React.Dispatch<React.SetStateAction<RouteVariables>>;
+  routeOptimization: RouteOptimizationResult | null;
+  setRouteOptimization: (v: RouteOptimizationResult | null) => void;
+  isOptimizingRoute: boolean;
+  setIsOptimizingRoute: (v: boolean) => void;
 }) {
   const { settings } = useSettings();
   const [loading, setLoading] = useState(false);
@@ -180,9 +198,21 @@ function RouteDashboard({
   };
 
   const calculateRouteDistance = async () => {
-    if (!variables.cidadeOrigem || !extracted || extracted.cidades.length === 0) return;
+    if (!variables.cidadeOrigem || !extracted || extracted.entregas.length === 0) return;
     
     setCalculatingRoute(true);
+    let optimizedRes = routeOptimization;
+    if (!optimizedRes) {
+      setIsOptimizingRoute(true);
+      optimizedRes = await generateOptimalRoute(variables.cidadeOrigem, extracted.entregas);
+      setRouteOptimization(optimizedRes);
+      setIsOptimizingRoute(false);
+    }
+    
+    if (!optimizedRes || !optimizedRes.entregasOrdenadas?.length) {
+      alert("Falha ao gerar roteirização. Tentando sem otimização...");
+    }
+
     try {
       const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
       
@@ -209,10 +239,20 @@ function RouteDashboard({
            return;
       }
       
-      // 2. Fetch Destinations with Origin's State Context
-      const allDestinations = extracted.cidades;
-      for (let i = 0; i < allDestinations.length; i++) {
-        const place = allDestinations[i];
+      // 2. Determine ordered destinations
+      let orderedCities = extracted.cidades;
+      if (optimizedRes && optimizedRes.entregasOrdenadas.length > 0) {
+         const sequenced = optimizedRes.entregasOrdenadas.sort((a,b) => a.ordem - b.ordem).map(e => {
+            const ent = extracted.entregas.find(ex => ex.id === e.id);
+            return ent ? ent.cidade : null;
+         }).filter(c => c !== null) as string[];
+         // Keep unique cities in order
+         orderedCities = Array.from(new Set(sequenced));
+      }
+
+      // 3. Fetch Destinations with Origin's State Context
+      for (let i = 0; i < orderedCities.length; i++) {
+        const place = orderedCities[i];
         await delay(1100); 
         
         try {
@@ -224,7 +264,7 @@ function RouteDashboard({
           const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&countrycodes=br&limit=1`);
           const data = await res.json();
           if (data && data.length > 0) {
-            coords.push({ lon: parseFloat(data[0].lon), lat: parseFloat(data[0].lat), name: place });
+             coords.push({ lon: parseFloat(data[0].lon), lat: parseFloat(data[0].lat), name: place });
           }
         } catch (e) {
            console.warn("Failed to geocode", place);
@@ -232,23 +272,25 @@ function RouteDashboard({
       }
 
       if (coords.length >= 2) {
+        // Build the route back to origin
+        coords.push(coords[0]); // Round trip
+
         const coordsString = coords.map(c => `${c.lon},${c.lat}`).join(';');
-        const tripRes = await fetch(`https://router.project-osrm.org/trip/v1/driving/${coordsString}?roundtrip=true&source=first`);
+        const tripRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=false`);
         if (tripRes.ok) {
            const tripData = await tripRes.json();
-           if (tripData.code === "Ok" && tripData.trips && tripData.trips.length > 0) {
-              const km = tripData.trips[0].distance / 1000;
-              // Add a 10% margin as real-world routes (Google Maps) often have detours/traffic compared to optimal OSRM paths
+           if (tripData.code === "Ok" && tripData.routes && tripData.routes.length > 0) {
+              const km = tripData.routes[0].distance / 1000;
+              // Add a 10% margin
               const adjustedKm = Math.round(km * 1.10);
               setVariables(p => ({ ...p, kmTotal: adjustedKm }));
               
               // Build Google Maps URL for visualization
               const originStr = `${variables.cidadeOrigem}${originState ? ' - ' + originState : ''}`;
               const gmOrigin = encodeURIComponent(originStr);
-              const gmDestination = gmOrigin; // Round trip back to origin
-              // Max waypoints for standard GMaps URL might be limited, but we add as many as we can
-              const waypoints = extracted.cidades.slice(0, 9).map(c => encodeURIComponent(`${c}${originState ? ' - ' + originState : ''}`)).join('|');
-              const url = `https://www.google.com/maps/dir/?api=1&origin=${gmOrigin}&destination=${gmDestination}&waypoints=${waypoints}`;
+              // Max waypoints for standard GMaps URL might be limited
+              const waypoints = orderedCities.slice(0, 9).map(c => encodeURIComponent(`${c}${originState ? ' - ' + originState : ''}`)).join('|');
+              const url = `https://www.google.com/maps/dir/?api=1&origin=${gmOrigin}&destination=${gmOrigin}&waypoints=${waypoints}`;
               setGoogleMapsUrl(url);
            } else {
               alert("Não foi possível processar a rota.");
@@ -272,6 +314,7 @@ function RouteDashboard({
     try {
       const data = await parseSpreadsheet(file);
       setExtracted(data);
+      if (routeOptimization) setRouteOptimization(null);
     } catch (err) {
       alert("Erro ao importar planilha. Verifique o formato.");
       console.error(err);
@@ -279,6 +322,19 @@ function RouteDashboard({
       setLoading(false);
     }
   };
+
+  React.useEffect(() => {
+     if (extracted && variables.cidadeOrigem && !routeOptimization && !isOptimizingRoute) {
+       // Only auto-trigger if there's no ongoing calculation and hasn't been optimized yet
+       // To avoid typing issues, check if cidadeOrigem is at least 3 chars
+       if (variables.cidadeOrigem.trim().length > 2) {
+          const timeoutId = setTimeout(() => {
+             calculateRouteDistance();
+          }, 1500); // 1.5s debounce for typing.
+          return () => clearTimeout(timeoutId);
+       }
+     }
+  }, [extracted, variables.cidadeOrigem, routeOptimization, isOptimizingRoute]);
 
   const handleFetchDieselPrice = async () => {
     if (!variables.cidadeOrigem) return;
@@ -450,7 +506,10 @@ function RouteDashboard({
                             placeholder="Ex: São Paulo" 
                             className="bg-white border-zinc-200 focus:ring-1 focus:ring-indigo-500 shadow-sm rounded-xl h-10"
                             value={variables.cidadeOrigem || ''} 
-                            onChange={e => setVariables(p => ({...p, cidadeOrigem: e.target.value}))}
+                            onChange={e => {
+                               setVariables(p => ({...p, cidadeOrigem: e.target.value}));
+                               if (routeOptimization) setRouteOptimization(null);
+                            }}
                             onBlur={handleOriginComplete}
                             onKeyDown={e => e.key === 'Enter' && handleOriginComplete()}
                          />
@@ -682,19 +741,30 @@ function StatsCard({ label, value, icon }: { label: string; value: string | numb
 // Routing Dashboard View
 // ---------------------------------------------------------
 
-import { generateOptimalRoute, RouteOptimizationResult } from './lib/gemini';
-import { RouteCalculations } from './types'; // already imported above actually, wait, I need to make sure I don't add duplicate imports, but just defining the component is fine.
-
-function RoutingDashboard({ extracted, cidadeOrigem }: { extracted: ExtractedData | null, cidadeOrigem?: string }) {
-  const [result, setResult] = useState<RouteOptimizationResult | null>(null);
-  const [loading, setLoading] = useState(false);
+function RoutingDashboard({ 
+  extracted, 
+  cidadeOrigem,
+  routeOptimization,
+  setRouteOptimization,
+  isOptimizingRoute,
+  setIsOptimizingRoute
+}: { 
+  extracted: ExtractedData | null, 
+  cidadeOrigem?: string,
+  routeOptimization: RouteOptimizationResult | null,
+  setRouteOptimization: (v: RouteOptimizationResult | null) => void,
+  isOptimizingRoute: boolean,
+  setIsOptimizingRoute: (v: boolean) => void
+}) {
+  const result = routeOptimization;
+  const loading = isOptimizingRoute;
 
   const handleOtimizar = async () => {
     if (!extracted || !extracted.entregas || extracted.entregas.length === 0) return;
-    setLoading(true);
+    setIsOptimizingRoute(true);
     const res = await generateOptimalRoute(cidadeOrigem || "Origem Indefinida", extracted.entregas);
-    setResult(res);
-    setLoading(false);
+    setRouteOptimization(res);
+    setIsOptimizingRoute(false);
   };
 
   return (
