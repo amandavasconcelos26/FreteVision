@@ -68,6 +68,7 @@ function extractData(rows: SpreadsheetRow[]): ExtractedData {
   const locaisSet = new Set<string>();
   const deliveriesSet = new Set<string>();
   const routePointsMap = new Map<string, { completo: string; cidade: string }>();
+  const deliveriesMap = new Map<string, any>();
 
   rows.forEach((row) => {
     // Normalizing keys to allow varying cases or spaces - but using precise keys as requested first
@@ -99,7 +100,28 @@ function extractData(rows: SpreadsheetRow[]): ExtractedData {
     const fullAddress = `${endereco || ''} ${bairro ? '- ' + bairro : ''} ${local ? '- ' + local : ''}`.trim();
     
     // Grouping Deliveries: Unique pair of (Client + Address)
-    deliveriesSet.add(`${recebedor}::${fullAddress}`);
+    const deliveryKey = `${recebedor}::${fullAddress}`;
+    deliveriesSet.add(deliveryKey);
+
+    if (!deliveriesMap.has(deliveryKey)) {
+      deliveriesMap.set(deliveryKey, {
+        id: deliveryKey,
+        cliente: recebedor,
+        enderecoCompleto: fullAddress,
+        cidade: String(local || '').trim(),
+        materiaisMap: new Map<string, { quantidade: number; peso: number }>(),
+        pesoTotal: 0
+      });
+    }
+    
+    const delData = deliveriesMap.get(deliveryKey);
+    delData.pesoTotal += peso;
+    if (!delData.materiaisMap.has(descricao)) {
+      delData.materiaisMap.set(descricao, { quantidade: 0, peso: 0 });
+    }
+    const delMat = delData.materiaisMap.get(descricao);
+    delMat.quantidade += qtd;
+    delMat.peso += peso;
 
     if (local) locaisSet.add(String(local).trim());
     if (fullAddress) {
@@ -123,6 +145,19 @@ function extractData(rows: SpreadsheetRow[]): ExtractedData {
     mat.peso += peso;
   });
 
+  const finalDeliveries = Array.from(deliveriesMap.values()).map(d => ({
+    id: d.id,
+    cliente: d.cliente,
+    enderecoCompleto: d.enderecoCompleto,
+    cidade: d.cidade,
+    pesoTotal: d.pesoTotal,
+    materiais: Array.from(d.materiaisMap.entries()).map(([desc, mats]: [string, any]) => ({
+      descricao: desc,
+      quantidade: mats.quantidade,
+      peso: mats.peso
+    }))
+  }));
+
   return {
     pesoTotal,
     qtdEntregas: deliveriesSet.size,
@@ -135,5 +170,6 @@ function extractData(rows: SpreadsheetRow[]): ExtractedData {
       peso: data.peso
     })).sort((a,b) => b.peso - a.peso),
     qtdItensTotal,
+    entregas: finalDeliveries
   };
 }

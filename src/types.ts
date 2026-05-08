@@ -46,6 +46,15 @@ export interface MaterialData {
   peso: number;
 }
 
+export interface DeliveryItem {
+  id: string;
+  cliente: string;
+  enderecoCompleto: string;
+  cidade: string;
+  materiais: MaterialData[];
+  pesoTotal: number;
+}
+
 export interface ExtractedData {
   pesoTotal: number;
   qtdEntregas: number;
@@ -54,6 +63,7 @@ export interface ExtractedData {
   locaisRoteirizacao: { completo: string; cidade: string }[];
   materiais: MaterialData[];
   qtdItensTotal: number;
+  entregas: DeliveryItem[];
 }
 
 export interface RouteCalculations {

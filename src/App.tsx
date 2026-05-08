@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Truck, Settings as SettingsIcon, UploadCloud, MapPin, Package, Users, DollarSign, Activity, FileSpreadsheet, ArrowRight, ChevronRight } from 'lucide-react';
+import { Truck, Settings as SettingsIcon, UploadCloud, MapPin, Package, Users, DollarSign, Activity, FileSpreadsheet, ArrowRight, ChevronRight, Map, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useSettings } from './hooks/useSettings';
 import { ExtractedData, RouteVariables, FixedCosts, RouteCalculations } from './types';
 import { parseSpreadsheet } from './lib/extractor';
@@ -13,7 +13,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { motion, AnimatePresence } from 'framer-motion';
 
 function App() {
-  const [view, setView] = useState<'route' | 'settings'>('route');
+  const [view, setView] = useState<'route' | 'routing' | 'settings'>('route');
+  const [extracted, setExtracted] = useState<ExtractedData | null>(null);
+  const [variables, setVariables] = useState<RouteVariables>({
+    kmTotal: 0,
+    valorFrete: 0,
+    qtdPernoites: 0,
+    pedagio: 0,
+    descarga: 0,
+    outrosCustos: 0,
+    cidadeOrigem: '',
+  });
 
   return (
     <div className="flex flex-col md:flex-row h-screen w-full bg-[#f8f9fa] text-zinc-900 font-sans overflow-hidden selection:bg-indigo-100 selection:text-indigo-900">
@@ -42,6 +52,16 @@ function App() {
             <span className="relative z-10">Painel da Rota</span>
           </button>
           <button 
+            onClick={() => setView('routing')}
+            className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-[13px] group hover:cursor-pointer ${view === 'routing' ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
+          >
+            {view === 'routing' && (
+              <motion.div layoutId="activeTab" className="absolute inset-0 bg-zinc-100 rounded-xl shadow-sm border border-zinc-200/50" transition={{ type: "spring", stiffness: 400, damping: 30 }} />
+            )}
+            <Map className={`w-4 h-4 relative z-10 transition-colors ${view === 'routing' ? 'text-[#C5A059]' : 'text-zinc-400 group-hover:text-[#C5A059]'}`} />
+            <span className="relative z-10">Roteirização</span>
+          </button>
+          <button 
             onClick={() => setView('settings')}
             className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-[13px] group hover:cursor-pointer ${view === 'settings' ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
           >
@@ -63,16 +83,35 @@ function App() {
       {/* Main Content */}
       <main className="flex-1 min-w-0 overflow-auto bg-[#f8f9fa] relative pb-20 md:pb-0 z-0">
         <AnimatePresence mode="wait">
-          {view === 'route' ? (
+          {view === 'route' && (
             <motion.div key="route" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="min-h-full flex flex-col">
-              <RouteDashboard />
+              <RouteDashboard 
+                extracted={extracted} 
+                setExtracted={setExtracted} 
+                variables={variables} 
+                setVariables={setVariables} 
+              />
               <div className="md:hidden mt-auto py-6 px-4">
                 <p className="text-[10px] text-zinc-400 text-center uppercase tracking-wider font-medium">
                   &copy; 2026 Desenvolvido por Amanda Vasconcelos
                 </p>
               </div>
             </motion.div>
-          ) : (
+          )}
+          {view === 'routing' && (
+            <motion.div key="routing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="min-h-full flex flex-col">
+              <RoutingDashboard 
+                extracted={extracted} 
+                cidadeOrigem={variables.cidadeOrigem} 
+              />
+              <div className="md:hidden mt-auto py-6 px-4">
+                <p className="text-[10px] text-zinc-400 text-center uppercase tracking-wider font-medium">
+                  &copy; 2026 Desenvolvido por Amanda Vasconcelos
+                </p>
+              </div>
+            </motion.div>
+          )}
+          {view === 'settings' && (
             <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="min-h-full flex flex-col">
               <SettingsDashboard />
               <div className="md:hidden mt-auto py-6 px-4">
@@ -95,6 +134,13 @@ function App() {
           <span className="text-[10px] font-medium">Painel da Rota</span>
         </button>
         <button 
+          onClick={() => setView('routing')}
+          className={`flex-1 flex flex-col items-center justify-center py-2.5 rounded-xl gap-1 transition-colors ${view === 'routing' ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-zinc-500'}`}
+        >
+          <Map className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Roteirização</span>
+        </button>
+        <button 
           onClick={() => setView('settings')}
           className={`flex-1 flex flex-col items-center justify-center py-2.5 rounded-xl gap-1 transition-colors ${view === 'settings' ? 'text-[#C5A059] bg-[#C5A059]/5' : 'text-zinc-500'}`}
         >
@@ -110,19 +156,19 @@ function App() {
 // Route Dashboard View
 // ---------------------------------------------------------
 
-function RouteDashboard() {
+function RouteDashboard({ 
+  extracted, 
+  setExtracted, 
+  variables, 
+  setVariables 
+}: { 
+  extracted: ExtractedData | null; 
+  setExtracted: (v: ExtractedData | null) => void;
+  variables: RouteVariables;
+  setVariables: React.Dispatch<React.SetStateAction<RouteVariables>>;
+}) {
   const { settings } = useSettings();
   const [loading, setLoading] = useState(false);
-  const [extracted, setExtracted] = useState<ExtractedData | null>(null);
-  const [variables, setVariables] = useState<RouteVariables>({
-    kmTotal: 0,
-    valorFrete: 0,
-    qtdPernoites: 0,
-    pedagio: 0,
-    descarga: 0,
-    outrosCustos: 0,
-    cidadeOrigem: '',
-  });
 
   const [calculatingRoute, setCalculatingRoute] = useState(false);
   const [calculatingDiesel, setCalculatingDiesel] = useState(false);
@@ -630,6 +676,174 @@ function StatsCard({ label, value, icon }: { label: string; value: string | numb
       </Card>
     </motion.div>
   )
+}
+
+// ---------------------------------------------------------
+// Routing Dashboard View
+// ---------------------------------------------------------
+
+import { generateOptimalRoute, RouteOptimizationResult } from './lib/gemini';
+import { RouteCalculations } from './types'; // already imported above actually, wait, I need to make sure I don't add duplicate imports, but just defining the component is fine.
+
+function RoutingDashboard({ extracted, cidadeOrigem }: { extracted: ExtractedData | null, cidadeOrigem?: string }) {
+  const [result, setResult] = useState<RouteOptimizationResult | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleOtimizar = async () => {
+    if (!extracted || !extracted.entregas || extracted.entregas.length === 0) return;
+    setLoading(true);
+    const res = await generateOptimalRoute(cidadeOrigem || "Origem Indefinida", extracted.entregas);
+    setResult(res);
+    setLoading(false);
+  };
+
+  return (
+    <div className="flex-1 flex flex-col pt-4 md:pt-8 p-4 md:p-8 max-w-7xl mx-auto w-full">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-zinc-900 mb-1 flex items-center gap-2">
+            Roteirização
+          </h1>
+          <p className="text-zinc-500 text-sm">Ordem de entrega otimizada por IA.</p>
+        </div>
+        
+        <Button 
+          onClick={handleOtimizar} 
+          disabled={loading || !extracted || !extracted.entregas?.length}
+          className="bg-[#C5A059] hover:bg-[#b08d4a] text-white shadow-sm h-11 px-6 rounded-xl font-medium"
+        >
+          {loading ? <Activity className="w-5 h-5 mr-2 animate-spin" /> : <Map className="w-5 h-5 mr-2" />}
+          Otimizar Rota com IA
+        </Button>
+      </div>
+      
+      {!result && !loading && (
+        <Card className="shadow-sm border border-zinc-200/80 rounded-2xl flex-1 flex items-center justify-center bg-white min-h-[400px]">
+          <div className="flex flex-col items-center justify-center text-center p-8 max-w-md mx-auto">
+            <div className="w-16 h-16 bg-[#C5A059]/10 rounded-full flex items-center justify-center mb-4">
+              <Map className="w-8 h-8 text-[#C5A059]" />
+            </div>
+            <h3 className="text-xl font-semibold text-zinc-900 mb-2">Pronto para roteirizar</h3>
+            <p className="text-zinc-500 text-sm mb-6">
+              Certifique-se de ter importado a planilha e definido a cidade de origem. A IA calculará a melhor rota e analisará espaço/cubagem e peso (Veículo 14T, 10.5x2.6m).
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {loading && (
+        <div className="flex-1 flex flex-col justify-center items-center py-20">
+          <Activity className="w-10 h-10 text-[#C5A059] animate-spin mb-4" />
+          <h3 className="font-medium text-zinc-900">Analisando entregas e roteirizando...</h3>
+          <p className="text-zinc-500 text-sm mt-1 text-center max-w-md">Isso pode levar alguns segundos dependendo da quantidade de entregas.</p>
+        </div>
+      )}
+
+      {result && !loading && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="shadow-sm border-zinc-200/60 rounded-2xl">
+              <CardContent className="p-6 bg-white rounded-2xl h-full flex flex-col justify-center items-center text-center">
+                 <div className="font-semibold text-zinc-500 mb-2">Viabilidade de Peso (14T)</div>
+                 <div className="flex items-center gap-2">
+                   {result.isViavelPeso ? (
+                     <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"><CheckCircle2 className="w-5 h-5"/></div>
+                   ) : (
+                     <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600"><AlertCircle className="w-5 h-5"/></div>
+                   )}
+                   <span className="text-2xl font-bold font-mono text-zinc-800">{result.pesoTotalSoma.toLocaleString()} Kg</span>
+                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm border-zinc-200/60 rounded-2xl">
+              <CardContent className="p-6 bg-white rounded-2xl h-full flex flex-col justify-center items-center text-center">
+                 <div className="font-semibold text-zinc-500 mb-2">Viabilidade de Espaço (~70m³)</div>
+                 <div className="flex items-center gap-2">
+                   {result.isViavelEspaco ? (
+                     <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"><CheckCircle2 className="w-5 h-5"/></div>
+                   ) : (
+                     <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600"><AlertCircle className="w-5 h-5"/></div>
+                   )}
+                   <span className="text-2xl font-bold font-mono text-zinc-800">{result.espacoM3TotalEstimado.toFixed(1)} m³ aprox.</span>
+                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm border-zinc-200/60 rounded-2xl">
+              <CardContent className="p-6 bg-white rounded-2xl h-full flex flex-col justify-center items-center text-center">
+                 <div className="font-semibold text-zinc-500 mb-2" title="Carga no rack superior">Material 12m (&le; 5T)</div>
+                 <div className="flex items-center gap-2">
+                   {result.isViavelMaterial12m ? (
+                     <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"><CheckCircle2 className="w-5 h-5"/></div>
+                   ) : (
+                     <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-red-600"><AlertCircle className="w-5 h-5"/></div>
+                   )}
+                   <span className="text-2xl font-bold font-mono text-zinc-800">{result.pesoMaterial12mEstimado.toLocaleString()} Kg</span>
+                 </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="shadow-sm border border-zinc-200/80 rounded-2xl bg-white overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50">
+              <h3 className="font-medium text-zinc-900">Análise Completa da Carga e Rota</h3>
+            </div>
+            <div className="p-6 text-sm text-zinc-700 whitespace-pre-wrap">
+              {result.analiseGeral}
+            </div>
+          </Card>
+
+          <h3 className="font-semibold text-xl text-zinc-900 mt-8 mb-4">Ordem de Entregas</h3>
+          <div className="space-y-4">
+            {result.entregasOrdenadas.sort((a,b) => a.ordem - b.ordem).map((entrega) => {
+              const extr = extracted?.entregas?.find(e => e.id === entrega.id);
+              if (!extr) return null;
+              
+              return (
+                <Card key={entrega.id} className="shadow-sm border border-zinc-200/80 rounded-2xl bg-white overflow-hidden flex flex-col md:flex-row">
+                   <div className="bg-[#C5A059] text-white p-4 flex flex-col justify-center items-center md:w-24 shrink-0 font-bold text-2xl">
+                     #{entrega.ordem}
+                   </div>
+                   <div className="p-5 flex-1">
+                     <h4 className="font-medium text-zinc-900 text-lg mb-1">{extr.cliente}</h4>
+                     <p className="text-zinc-500 text-sm mb-3 flex items-start gap-1"><MapPin className="w-4 h-4 mt-0.5 shrink-0" /> {extr.enderecoCompleto}</p>
+                     
+                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+                       <div className="bg-zinc-50 p-2 rounded-lg">
+                         <div className="text-zinc-500 text-xs">Peso Total</div>
+                         <div className="font-semibold text-zinc-800">{extr.pesoTotal.toLocaleString()} kg</div>
+                       </div>
+                       <div className="bg-zinc-50 p-2 rounded-lg">
+                         <div className="text-zinc-500 text-xs">Est. Cubagem</div>
+                         <div className="font-semibold text-zinc-800">{entrega.estimativaEspacoOcupadoCubico.toFixed(1)} m³</div>
+                       </div>
+                     </div>
+                     
+                     <div className="text-sm bg-blue-50/50 border border-blue-100 p-3 rounded-xl text-blue-800 mb-4">
+                        <span className="font-semibold">Justificativa: </span> {entrega.justificativa}
+                     </div>
+
+                     <div className="space-y-2">
+                       <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Materiais a descarregar:</div>
+                       {extr.materiais.map((m, i) => (
+                         <div key={i} className="flex justify-between items-center text-sm border-t border-zinc-100 pt-2">
+                           <span className="text-zinc-700 truncate mr-2" title={m.descricao}>{m.descricao}</span>
+                           <span className="text-zinc-500 shrink-0 tabular-nums">
+                             <span className="font-medium text-zinc-700">{m.quantidade}</span> un &bull; <span className="font-medium text-zinc-700">{m.peso.toLocaleString()}</span> kg
+                           </span>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------
