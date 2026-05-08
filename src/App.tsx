@@ -211,7 +211,7 @@ function RouteDashboard({
     
     if (optimizedRes && 'error' in optimizedRes) {
       alert("Erro da IA: " + optimizedRes.error + "\n\nO cálculo da rota continuará sem a otimização de paradas.");
-    } else if (!optimizedRes || !optimizedRes.entregasOrdenadas?.length) {
+    } else if (!optimizedRes || ('entregasOrdenadas' in optimizedRes && !optimizedRes.entregasOrdenadas?.length)) {
       alert("Falha ao gerar roteirização. Tentando sem otimização...");
     }
 
@@ -224,7 +224,8 @@ function RouteDashboard({
       // 1. Fetch Origin and extract State
       try {
         const qOrigin = encodeURIComponent(variables.cidadeOrigem + ", Brasil");
-        const resOrigin = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${qOrigin}&countrycodes=br&limit=1&addressdetails=1`);
+        const resOrigin = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${qOrigin}&countrycodes=br&limit=1&addressdetails=1&email=contato@fretevision.com`);
+        if (!resOrigin.ok) throw new Error(`HTTP ${resOrigin.status}`);
         const dataOrigin = await resOrigin.json();
         if (dataOrigin && dataOrigin.length > 0) {
           coords.push({ lon: parseFloat(dataOrigin[0].lon), lat: parseFloat(dataOrigin[0].lat), name: variables.cidadeOrigem });
@@ -234,9 +235,9 @@ function RouteDashboard({
            setCalculatingRoute(false);
            return;
         }
-      } catch (e) {
+      } catch (e: any) {
            console.warn("Failed origin", e);
-           alert("Erro ao buscar a cidade de origem.");
+           alert("Erro ao buscar a cidade de origem: " + (e.message || String(e)) + "\n\nVerifique sua conexão ou tente usar um nome de cidade diferente.");
            setCalculatingRoute(false);
            return;
       }
@@ -263,7 +264,8 @@ function RouteDashboard({
           queryParts.push("Brasil");
           
           const q = encodeURIComponent(queryParts.join(", "));
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&countrycodes=br&limit=1`);
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&countrycodes=br&limit=1&email=contato@fretevision.com`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
           if (data && data.length > 0) {
              coords.push({ lon: parseFloat(data[0].lon), lat: parseFloat(data[0].lat), name: place });

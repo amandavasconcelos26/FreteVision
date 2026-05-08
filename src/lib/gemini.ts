@@ -5,7 +5,7 @@ export async function fetchDieselPrice(origem: string): Promise<number | null> {
   if (!origem) return null;
   
   try {
-    const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined);
+    const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined);
     if (!apiKey) return null;
     const ai = new GoogleGenAI({ apiKey });
     
@@ -56,7 +56,7 @@ export async function generateOptimalRoute(origem: string, entregas: DeliveryIte
   if (!entregas || entregas.length === 0) return null;
   
   try {
-    const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined);
+    const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env.GEMINI_API_KEY : undefined);
     if (!apiKey) {
       return { error: "Chave da API ausente. No Vercel, você deve criar a variável como VITE_GEMINI_API_KEY e fazer um NOVO DEPLOY." };
     }
