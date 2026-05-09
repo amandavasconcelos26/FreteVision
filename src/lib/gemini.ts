@@ -66,11 +66,11 @@ export async function generateOptimalRoute(origem: string, entregas: DeliveryIte
 Restrições do Veículo:
 - Capacidade Máxima de Carga: 14 toneladas (14.000 kg)
 - Dimensões Internas (estimativa): 2.60m de largura x 10.50m de comprimento (aprox. 27.3 m²). A altura média é 2.60m, gerando aprox 70m³ de cubagem total.
-- **RESTRIÇÃO CRÍTICA**: Material de 12 metros (como vergalhões RT que vão no cavalete/rack superior) só pode ser carregado até um máximo de 5 toneladas (5.000 kg).
+- **RESTRIÇÃO CRÍTICA (Rack Superior)**: Material de 12 metros (como vergalhões RT que vão no cavalete/rack superior) só pode ser carregado até um máximo de 5 toneladas (5.000 kg).
 
 Regras de Carregamento e Ordem de Entrega (MUITO IMPORTANTE):
-1. A sigla "DOB" significa que o material é DOBRADO (ocupando menos espaço linear que o 12m, por exemplo).
-2. As **Chapas** vão no piso/solo do caminhão, portanto os clientes com "Chapas" DEBEM SER AS ÚLTIMAS ENTREGAS (para que as chapas sejam descarregadas por último).
+1. A sigla "DOB" significa que o material é DOBRADO (ocupando menos espaço linear que o 12m, por exemplo). Materiais DOB, Chapas e Telas NÃO vão no rack de 12m.
+2. As **Chapas** vão no piso/solo do caminhão, portanto os clientes com "Chapas" DEVEM SER AS ÚLTIMAS ENTREGAS (para que as chapas sejam descarregadas por último).
 3. As **Telas** vão por cima das chapas.
 4. As **PRIMEIRAS ENTREGAS** a serem feitas devem ser os clientes que contêm **"Colunas"** e **"materiais de 2 metros"**.
 
@@ -80,6 +80,11 @@ Considere:
 - A restrição de 5 toneladas para materiais de 12 metros.
 - As regras de carregamento (Chapas por último, Colunas e material 2m primeiro).
 - A distância/ordem geográfica entre as cidades, MAS DEVE RESPEITAR as regras de carregamento (ex: se um cliente perto tem apenas chapas, ele pode ter que ficar para depois caso não dê para descarregar a chapa com outros materiais em cima). Planeje a melhor sequência lógica considerando a arrumação da carga e a geografia.
+
+No campo "analiseGeral", você DEVE:
+1. Explicitar quais produtos você identificou como sendo de 12 metros e por que somou o peso deles no cálculo do rack superior.
+2. Justificar a viabilidade de peso e espaço baseado no caminhão de 14T (10.5m comprimento).
+3. Comentar sobre a ordem de entregas escolhida (quais clientes foram priorizados e por quê).
 
 Entregas:
 ${JSON.stringify(entregas.map(e => ({
@@ -119,7 +124,7 @@ ${JSON.stringify(entregas.map(e => ({
             pesoMaterial12mEstimado: { type: Type.NUMBER, description: "Peso total estimado (em kg) de materiais de 12m identificados na carga" },
             espacoM3TotalEstimado: { type: Type.NUMBER },
             pesoTotalSoma: { type: Type.NUMBER },
-            analiseGeral: { type: Type.STRING }
+            analiseGeral: { type: Type.STRING, description: "Análise textual detalhada da viabilidade técnica, incluindo a lista de itens de 12m identificados, justificativa da ordem das entregas e comentários sobre o aproveitamento do espaço." }
           },
           required: ["entregasOrdenadas", "isViavelEspaco", "isViavelPeso", "isViavelMaterial12m", "pesoMaterial12mEstimado", "espacoM3TotalEstimado", "pesoTotalSoma", "analiseGeral"]
         },

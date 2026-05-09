@@ -96,6 +96,7 @@ function App() {
                 setRouteOptimization={setRouteOptimization}
                 isOptimizingRoute={isOptimizingRoute}
                 setIsOptimizingRoute={setIsOptimizingRoute}
+                onViewChange={setView}
               />
               <div className="md:hidden mt-auto py-6 px-4">
                 <p className="text-[10px] text-zinc-400 text-center uppercase tracking-wider font-medium">
@@ -174,7 +175,8 @@ function RouteDashboard({
   routeOptimization,
   setRouteOptimization,
   isOptimizingRoute,
-  setIsOptimizingRoute
+  setIsOptimizingRoute,
+  onViewChange
 }: { 
   extracted: ExtractedData | null; 
   setExtracted: (v: ExtractedData | null) => void;
@@ -184,6 +186,7 @@ function RouteDashboard({
   setRouteOptimization: (v: RouteOptimizationResult | { error: string } | null) => void;
   isOptimizingRoute: boolean;
   setIsOptimizingRoute: (v: boolean) => void;
+  onViewChange?: (v: 'route' | 'routing' | 'settings') => void;
 }) {
   const { settings } = useSettings();
   const [loading, setLoading] = useState(false);
@@ -480,6 +483,16 @@ function RouteDashboard({
                   <button className="text-[12px] md:text-[13px] font-medium text-zinc-400 hover:text-zinc-600 transition-colors pointer-events-none underline underline-offset-2">Substituir arquivo</button>
                 </div>
              </div>
+
+             <Button 
+               variant="outline" 
+               size="sm" 
+               onClick={() => onViewChange?.('routing')}
+               className="border-[#C5A059]/30 text-[#C5A059] hover:bg-[#C5A059]/10 rounded-xl gap-2 hidden md:flex"
+             >
+               <Map className="w-4 h-4" />
+               Ver Roteirização Inteligente
+             </Button>
           </motion.div>
           
           <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -863,7 +876,15 @@ function RoutingDashboard({
 
             <Card className="shadow-sm border-zinc-200/60 rounded-2xl">
               <CardContent className="p-6 bg-white rounded-2xl h-full flex flex-col justify-center items-center text-center">
-                 <div className="font-semibold text-zinc-500 mb-2" title="Carga no rack superior">Material 12m (&le; 5T)</div>
+                 <div className="font-semibold text-zinc-500 mb-2 flex items-center gap-1.5" title="Carga no rack superior">
+                   Material 12m (&le; 5T)
+                   <div className="group relative">
+                     <AlertCircle className="w-3.5 h-3.5 text-zinc-400 cursor-help" />
+                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-zinc-800 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                       A IA identifica materiais longos (12m/vergalhões) que devem ir no rack superior, limitado a 5.000kg.
+                     </div>
+                   </div>
+                 </div>
                  <div className="flex items-center gap-2">
                    {result.isViavelMaterial12m ? (
                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600"><CheckCircle2 className="w-5 h-5"/></div>
@@ -876,12 +897,13 @@ function RoutingDashboard({
             </Card>
           </div>
 
-          <Card className="shadow-sm border border-zinc-200/80 rounded-2xl bg-white overflow-hidden">
-            <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/50">
-              <h3 className="font-medium text-zinc-900">Análise Completa da Carga e Rota</h3>
+          <Card className="shadow-md border-[#C5A059]/20 rounded-2xl bg-white overflow-hidden ring-1 ring-[#C5A059]/5">
+            <div className="px-6 py-4 border-b border-zinc-100 bg-[#C5A059]/5 flex items-center gap-2">
+              <Activity className="w-5 h-5 text-[#C5A059]" />
+              <h3 className="font-semibold text-[#C5A059]">Relatório Detalhado: Análise de Carga e Rota</h3>
             </div>
-            <div className="p-6 text-sm text-zinc-700 whitespace-pre-wrap">
-              {result.analiseGeral}
+            <div className="p-6 text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">
+              {result.analiseGeral || "Nenhuma análise detalhada disponível."}
             </div>
           </Card>
 
