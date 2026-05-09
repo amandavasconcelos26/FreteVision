@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Truck, Settings as SettingsIcon, UploadCloud, MapPin, Package, Users, DollarSign, Activity, FileSpreadsheet, ArrowRight, ChevronRight, Map, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useSettings } from './hooks/useSettings';
 import { ExtractedData, RouteVariables, FixedCosts, RouteCalculations } from './types';
@@ -776,6 +776,12 @@ function RoutingDashboard({
   const result = routeOptimization;
   const loading = isOptimizingRoute;
 
+  useEffect(() => {
+    if (!result && !loading && extracted && extracted.entregas?.length > 0 && cidadeOrigem) {
+      handleOtimizar();
+    }
+  }, [result, loading, extracted, cidadeOrigem]);
+
   const handleOtimizar = async () => {
     if (!extracted || !extracted.entregas || extracted.entregas.length === 0) return;
     setIsOptimizingRoute(true);
@@ -793,15 +799,6 @@ function RoutingDashboard({
           </h1>
           <p className="text-zinc-500 text-sm">Ordem de entrega otimizada por IA.</p>
         </div>
-        
-        <Button 
-          onClick={handleOtimizar} 
-          disabled={loading || !extracted || !extracted.entregas?.length}
-          className="bg-[#C5A059] hover:bg-[#b08d4a] text-white shadow-sm h-11 px-6 rounded-xl font-medium"
-        >
-          {loading ? <Activity className="w-5 h-5 mr-2 animate-spin" /> : <Map className="w-5 h-5 mr-2" />}
-          Otimizar Rota com IA
-        </Button>
       </div>
       
       {!result && !loading && (
